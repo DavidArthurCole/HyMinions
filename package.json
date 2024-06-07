@@ -27,9 +27,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "genForgePretty": "node -e 'require(\"./gen/src/genForge.js\").genForgePretty()'",
-    "genForge": "node -e 'require(\"./gen/src/genForge.js\").genForge()'",
-    "genAuctions": "node -e 'require(\"./gen/src/genForge.js\").genAuctions()'",
+    "genForgePretty": "node -e \"import('./gen/src/genForge.js').then(module => module.genForgePretty())\"",
+    "genForge": "node -e \"import('./gen/src/genForge.js').then(module => module.genForge())\"",
+    "genAuctions": "node -e \"import('./gen/src/genForge.js').then(module => module.genAuctions())\"",
     "deploy": " git push heroku minions:main"
   },
   "license": "ISC"
