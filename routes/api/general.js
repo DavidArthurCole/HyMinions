@@ -133,215 +133,207 @@ exports.merge = function merge(data1, data2) {
 
 exports.findBazaar = async function findBazaar(settings){
     return new Promise((resolve)=>{
-        setTimeout(() => {
-            fetch("https://api.hypixel.net/skyblock/bazaar")
-            .then(result => result.json())
-            .then(({ products }) => {
-                var pricesAjax = new Array(2);
-                pricesAjax[0] = new Object();
-                pricesAjax[1] = new Object();
-                Object.keys(itemNames).forEach((id) =>{
-                    //0 -> sell price (sell offer) (buy instantly)
-                    //if it has sell offer, use sell offer, else use default price
-                    pricesAjax[0][itemNames[id]]= (products[id]["buy_summary"][0] ? products[id]["buy_summary"][0]["pricePerUnit"] : products[id]["quick_status"]["buyPrice"]);
-                    //1 -> buy price (sell instantly) (buy order)
-                    //if it has buy order, use buy order, else use default price
-                    pricesAjax[1][itemNames[id]]= (products[id]["sell_summary"][0] ? products[id]["sell_summary"][0]["pricePerUnit"] : products[id]["quick_status"]["sellPrice"]);
-                })
-                
-                pricesAjax[0]["Diamond (Spreading)"] = pricesAjax[0]["Diamond"];
-                pricesAjax[1]["Diamond (Spreading)"] = pricesAjax[1]["Diamond"];
-                pricesAjax[0]["Enchanted Diamond (Spreading)"] = pricesAjax[0]["Enchanted Diamond"];
-                pricesAjax[1]["Enchanted Diamond (Spreading)"] = pricesAjax[1]["Enchanted Diamond"];
-                pricesAjax[0]["Enchanted Diamond Block (Spreading)"] = pricesAjax[0]["Enchanted Diamond Block"];
-                pricesAjax[1]["Enchanted Diamond Block (Spreading)"] = pricesAjax[1]["Enchanted Diamond Block"];
-
-                resolve(pricesAjax);
+        fetch("https://api.hypixel.net/skyblock/bazaar")
+        .then(result => result.json())
+        .then(({ products }) => {
+            var pricesAjax = new Array(2);
+            pricesAjax[0] = new Object();
+            pricesAjax[1] = new Object();
+            Object.keys(itemNames).forEach((id) =>{
+                //0 -> sell price (sell offer) (buy instantly)
+                //if it has sell offer, use sell offer, else use default price
+                pricesAjax[0][itemNames[id]]= (products[id]["buy_summary"][0] ? products[id]["buy_summary"][0]["pricePerUnit"] : products[id]["quick_status"]["buyPrice"]);
+                //1 -> buy price (sell instantly) (buy order)
+                //if it has buy order, use buy order, else use default price
+                pricesAjax[1][itemNames[id]]= (products[id]["sell_summary"][0] ? products[id]["sell_summary"][0]["pricePerUnit"] : products[id]["quick_status"]["sellPrice"]);
             })
-            .catch((err)=>{
-                console.log("catch from bazaar",err);
-                settings.hasError=true;
-                settings.errorMsg = "Error occured when getting bazaar prices.";
-                resolve("error");
-            });
-        }, 1000);
+            
+            pricesAjax[0]["Diamond (Spreading)"] = pricesAjax[0]["Diamond"];
+            pricesAjax[1]["Diamond (Spreading)"] = pricesAjax[1]["Diamond"];
+            pricesAjax[0]["Enchanted Diamond (Spreading)"] = pricesAjax[0]["Enchanted Diamond"];
+            pricesAjax[1]["Enchanted Diamond (Spreading)"] = pricesAjax[1]["Enchanted Diamond"];
+            pricesAjax[0]["Enchanted Diamond Block (Spreading)"] = pricesAjax[0]["Enchanted Diamond Block"];
+            pricesAjax[1]["Enchanted Diamond Block (Spreading)"] = pricesAjax[1]["Enchanted Diamond Block"];
+
+            resolve(pricesAjax);
+        })
+        .catch((err)=>{
+            console.log("catch from bazaar",err);
+            settings.hasError=true;
+            settings.errorMsg = "Error occured when getting bazaar prices.";
+            resolve("error");
+        });
     });
 }
 
 exports.findProfile = async function findProfile(name,settings){
     return new Promise((resolve)=>{
-        setTimeout(() => {
-            fetch("https://api.mojang.com/users/profiles/minecraft/"+name)
-            .then(result => result.json())
-            .then(({id, name}) => {
-                if(!name){
-                    console.log("error from mojang api")
-                    settings.hasError=true;
-                    settings.errorMsg = "Error occured when finding the profile. The player does not exist.";
-                    resolve("error");
-                    return;
-                }
-                settings.name=name; //fix case
-                fetch("https://api.hypixel.net/skyblock/profiles?key="+process.env.HYPIXEL_KEY+"&uuid="+id)
-                .then(result => result.json())
-                .then(({success, profiles}) => {
-                    if(!success){
-                        console.log("error getting API")
-                        settings.hasError=true;
-                        settings.errorMsg = "Error occurred when communicating with the Hypixel API.";
-                        resolve("error");
-                        return;
-                    }
-                    if(!profiles){
-                        console.log("api no profiles");
-                        settings.hasError=true;
-                        settings.errorMsg = "Error occured when finding the profile. The player has not played Skyblock before.";
-                        resolve("error");
-                        return;
-                    }
-                    let profilesAjax = new Array();
-                    profiles.forEach((profile, index)=>{
-                        profilesAjax[index] = new Object();
-                        profilesAjax[index]["rawMinions"] = new Array();
-                        profilesAjax[index]["rawCollections"] = new Array();
-                        //unique minions crafted for minions cost cal and minions cal
-                        Object.keys(profile["members"]).forEach((member, index2)=>{
-                            if(profile["members"][member]["crafted_generators"]){
-                                profilesAjax[index]["rawMinions"].push(...profile["members"][member]["crafted_generators"]);
-                            }
-                        });
-                        //collections for minions cost cal
-                        Object.keys(profile["members"]).forEach((member, index2)=>{
-                            if(profile["members"][member]["unlocked_coll_tiers"]){
-                                profilesAjax[index]["rawCollections"].push(...profile["members"][member]["unlocked_coll_tiers"]);
-                            }
-                        });
-                        //community slots for minions cost cal
-                        let communitySlots = 0;
-                        if(profile["community_upgrades"]&&profile["community_upgrades"]["upgrade_states"]){
-                            profile["community_upgrades"]["upgrade_states"].forEach((upgrade)=>{
-                                if(upgrade.upgrade=="minion_slots"&&upgrade.tier>communitySlots){
-                                    communitySlots = upgrade.tier;
-                                }
-                            });
-                        }
-                        profilesAjax[index]["communitySlots"] = communitySlots;
-                        profilesAjax[index]["slayerBosses"] = {
-                            "revenant5": false,
-                            "revenant9": false,
-                            "tarantula5": false,
-                            "voidling4": false,
-                            "inferno3": false,
-                        };
-                        profilesAjax[index]["hotmXp"] = -1;
-                        Object.keys(profile["members"]).forEach((member, index2)=>{
-                            //slayer levels for minions cost cal
-                            if(profile["members"][member]["slayer_bosses"]){
-                                if(profile["members"][member]["slayer_bosses"]?.["zombie"]?.["claimed_levels"]?.["level_5"]){
-                                    profilesAjax[index]["slayerBosses"]["revenant5"] = true;
-                                }
-                                if(profile["members"][member]["slayer_bosses"]?.["zombie"]?.["claimed_levels"]?.["level_9_special"]){
-                                    profilesAjax[index]["slayerBosses"]["revenant9"] = true;
-                                }
-                                if(profile["members"][member]["slayer_bosses"]?.["spider"]?.["claimed_levels"]?.["level_5"]){
-                                    profilesAjax[index]["slayerBosses"]["tarantula5"] = true;
-                                }
-                                if(profile["members"][member]["slayer_bosses"]?.["enderman"]?.["claimed_levels"]?.["level_4"]){
-                                    profilesAjax[index]["slayerBosses"]["voidling4"] = true;
-                                }
-                                if(profile["members"][member]["slayer_bosses"]?.["blaze"]?.["claimed_levels"]?.["level_3"]){
-                                    profilesAjax[index]["slayerBosses"]["inferno3"] = true;
-                                }
-                            }
-
-                            //hotm level for forge cal
-                            // console.log(180,profile["members"][member]["mining_core"]?.["experience"]);
-                            if(profile["members"][member]["mining_core"]?.["experience"]){
-                                profilesAjax[index]["hotmXp"] = Math.max(profile["members"][member]["mining_core"]?.["experience"],profilesAjax[index]["hotmXp"]);
-                                // console.log(183,profilesAjax[index]["hotmXp"]);
-                            }
-                            
-                            // console.log(186,profilesAjax[index]["hotmXp"]);
-
-                        });
-                        profilesAjax[index]["cuteName"] = profile["cute_name"];
-                    });
-                    profilesAjax.sort((a,b)=>{
-                        return b["rawMinions"].length-a["rawMinions"].length;
-                    });
-                    console.log("finished findProfile");
-                    resolve(profilesAjax);
-                })
-                .catch((err)=>{
-                    console.log("catch from skyblock",err);
-                    settings.hasError=true;
-                    settings.errorMsg = "Error occurred when communicating with the Hypixel API."
-                    resolve("error");
-                });
-            })
-            .catch((err)=>{
-                console.log("catch from mojang",err);
+        fetch("https://api.mojang.com/users/profiles/minecraft/"+name)
+        .then(result => result.json())
+        .then(({id, name}) => {
+            if(!name){
+                console.log("error from mojang api")
                 settings.hasError=true;
                 settings.errorMsg = "Error occured when finding the profile. The player does not exist.";
                 resolve("error");
+                return;
+            }
+            settings.name=name; //fix case
+            fetch("https://api.hypixel.net/skyblock/profiles?key="+process.env.HYPIXEL_KEY+"&uuid="+id)
+            .then(result => result.json())
+            .then(({success, profiles}) => {
+                if(!success){
+                    console.log("error getting API")
+                    settings.hasError=true;
+                    settings.errorMsg = "Error occurred when communicating with the Hypixel API.";
+                    resolve("error");
+                    return;
+                }
+                if(!profiles){
+                    console.log("api no profiles");
+                    settings.hasError=true;
+                    settings.errorMsg = "Error occured when finding the profile. The player has not played Skyblock before.";
+                    resolve("error");
+                    return;
+                }
+                let profilesAjax = new Array();
+                profiles.forEach((profile, index)=>{
+                    profilesAjax[index] = new Object();
+                    profilesAjax[index]["rawMinions"] = new Array();
+                    profilesAjax[index]["rawCollections"] = new Array();
+                    //unique minions crafted for minions cost cal and minions cal
+                    Object.keys(profile["members"]).forEach((member, index2)=>{
+                        if(profile["members"][member]["crafted_generators"]){
+                            profilesAjax[index]["rawMinions"].push(...profile["members"][member]["crafted_generators"]);
+                        }
+                    });
+                    //collections for minions cost cal
+                    Object.keys(profile["members"]).forEach((member, index2)=>{
+                        if(profile["members"][member]["unlocked_coll_tiers"]){
+                            profilesAjax[index]["rawCollections"].push(...profile["members"][member]["unlocked_coll_tiers"]);
+                        }
+                    });
+                    //community slots for minions cost cal
+                    let communitySlots = 0;
+                    if(profile["community_upgrades"]&&profile["community_upgrades"]["upgrade_states"]){
+                        profile["community_upgrades"]["upgrade_states"].forEach((upgrade)=>{
+                            if(upgrade.upgrade=="minion_slots"&&upgrade.tier>communitySlots){
+                                communitySlots = upgrade.tier;
+                            }
+                        });
+                    }
+                    profilesAjax[index]["communitySlots"] = communitySlots;
+                    profilesAjax[index]["slayerBosses"] = {
+                        "revenant5": false,
+                        "revenant9": false,
+                        "tarantula5": false,
+                        "voidling4": false,
+                        "inferno3": false,
+                    };
+                    profilesAjax[index]["hotmXp"] = -1;
+                    Object.keys(profile["members"]).forEach((member, index2)=>{
+                        //slayer levels for minions cost cal
+                        if(profile["members"][member]["slayer_bosses"]){
+                            if(profile["members"][member]["slayer_bosses"]?.["zombie"]?.["claimed_levels"]?.["level_5"]){
+                                profilesAjax[index]["slayerBosses"]["revenant5"] = true;
+                            }
+                            if(profile["members"][member]["slayer_bosses"]?.["zombie"]?.["claimed_levels"]?.["level_9_special"]){
+                                profilesAjax[index]["slayerBosses"]["revenant9"] = true;
+                            }
+                            if(profile["members"][member]["slayer_bosses"]?.["spider"]?.["claimed_levels"]?.["level_5"]){
+                                profilesAjax[index]["slayerBosses"]["tarantula5"] = true;
+                            }
+                            if(profile["members"][member]["slayer_bosses"]?.["enderman"]?.["claimed_levels"]?.["level_4"]){
+                                profilesAjax[index]["slayerBosses"]["voidling4"] = true;
+                            }
+                            if(profile["members"][member]["slayer_bosses"]?.["blaze"]?.["claimed_levels"]?.["level_3"]){
+                                profilesAjax[index]["slayerBosses"]["inferno3"] = true;
+                            }
+                        }
+
+                        //hotm level for forge cal
+                        // console.log(180,profile["members"][member]["mining_core"]?.["experience"]);
+                        if(profile["members"][member]["mining_core"]?.["experience"]){
+                            profilesAjax[index]["hotmXp"] = Math.max(profile["members"][member]["mining_core"]?.["experience"],profilesAjax[index]["hotmXp"]);
+                            // console.log(183,profilesAjax[index]["hotmXp"]);
+                        }
+                        
+                        // console.log(186,profilesAjax[index]["hotmXp"]);
+
+                    });
+                    profilesAjax[index]["cuteName"] = profile["cute_name"];
+                });
+                profilesAjax.sort((a,b)=>{
+                    return b["rawMinions"].length-a["rawMinions"].length;
+                });
+                console.log("finished findProfile");
+                resolve(profilesAjax);
+            })
+            .catch((err)=>{
+                console.log("catch from skyblock",err);
+                settings.hasError=true;
+                settings.errorMsg = "Error occurred when communicating with the Hypixel API."
+                resolve("error");
             });
-        }, 1000);
+        })
+        .catch((err)=>{
+            console.log("catch from mojang",err);
+            settings.hasError=true;
+            settings.errorMsg = "Error occured when finding the profile. The player does not exist.";
+            resolve("error");
+        });
     });
 }
 
 exports.findAuctions = async function findAuctions(settings){
     return new Promise((resolve)=>{
-        setTimeout(() => {
-            fetch(process.env.BACKEND_LINK+"/auctions/forge")
-            .then(result => result.json())
-            .then(({finishTime,data,status,errorMsg,news}) => {
-                if(status!="success"){
-                    console.log("catch from auctions backend (catch from findAuctions reading backend)");
-                    settings.lastUpdatedAuctionServer = new Date(finishTime);
-                    settings.hasError=true;
-                    settings.errorMsg = errorMsg || "Error occured when getting auction prices. (catch from findAuctions reading backend)";
-                    settings.news = news;
-                    resolve("error");
-                }else{
-                    settings.lastUpdatedAuctionServer = new Date(finishTime);
-                    settings.news = news;
-                    resolve(data);
-                }
-            }).catch((err)=>{
-                console.log("catch from findAuctions",err);
+        fetch(process.env.BACKEND_LINK+"/auctions/forge")
+        .then(result => result.json())
+        .then(({finishTime,data,status,errorMsg,news}) => {
+            if(status!="success"){
+                console.log("catch from auctions backend (catch from findAuctions reading backend)");
+                settings.lastUpdatedAuctionServer = new Date(finishTime);
                 settings.hasError=true;
-                settings.errorMsg = "Error occured when getting auction prices. (catch from findAuctions)";
+                settings.errorMsg = errorMsg || "Error occured when getting auction prices. (catch from findAuctions reading backend)";
+                settings.news = news;
                 resolve("error");
-            });
-        }, 1000);
+            }else{
+                settings.lastUpdatedAuctionServer = new Date(finishTime);
+                settings.news = news;
+                resolve(data);
+            }
+        }).catch((err)=>{
+            console.log("catch from findAuctions",err);
+            settings.hasError=true;
+            settings.errorMsg = "Error occured when getting auction prices. (catch from findAuctions)";
+            resolve("error");
+        });
     });
 }
 
 exports.findAuction = async function findAuction(queryString,settings){
     return new Promise((resolve)=>{
-        setTimeout(() => {
-            fetch(process.env.BACKEND_LINK+"/auctions/get"+queryString)
-            .then(result => result.json())
-            .then(({finishTime,data,status,errorMsg,news}) => {
-                if(status!="success"){
-                    console.log("catch from auctions backend (catch from findAuction reading backend)");
-                    settings.lastUpdatedAuctionServer = new Date(finishTime);
-                    settings.hasError=true;
-                    settings.errorMsg = errorMsg || "Error occured when getting auction prices. (catch from findAuction reading backend)";
-                    settings.news = news;
-                    resolve("error");
-                }else{
-                    settings.lastUpdatedAuctionServer = new Date(finishTime);
-                    settings.news = news;
-                    resolve(data);
-                }
-            }).catch((err)=>{
-                console.log("catch from findAuctions",err);
+        fetch(process.env.BACKEND_LINK+"/auctions/get"+queryString)
+        .then(result => result.json())
+        .then(({finishTime,data,status,errorMsg,news}) => {
+            if(status!="success"){
+                console.log("catch from auctions backend (catch from findAuction reading backend)");
+                settings.lastUpdatedAuctionServer = new Date(finishTime);
                 settings.hasError=true;
-                settings.errorMsg = "Error occured when getting auction prices. (catch from findAuction)";
+                settings.errorMsg = errorMsg || "Error occured when getting auction prices. (catch from findAuction reading backend)";
+                settings.news = news;
                 resolve("error");
-            });
-        }, 1000);
+            }else{
+                settings.lastUpdatedAuctionServer = new Date(finishTime);
+                settings.news = news;
+                resolve(data);
+            }
+        }).catch((err)=>{
+            console.log("catch from findAuctions",err);
+            settings.hasError=true;
+            settings.errorMsg = "Error occured when getting auction prices. (catch from findAuction)";
+            resolve("error");
+        });
     });
 }
 
